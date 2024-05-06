@@ -1,6 +1,14 @@
-pip install opencv-python
-pip install ultralytics
-pip install pywin32
-pip install pillow
-pip install cvzone
-pip install pyinstaller
+opencv-python
+ultralytics
+pywin32
+pillow
+cvzone
+pyinstaller
+python-telegram-bot
+pytz
+datetime
+asyncio
+numpy
+threading
+PIL
+pandas

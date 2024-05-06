@@ -4,29 +4,29 @@ import sys
 from winerror import ERROR_ALREADY_EXISTS
 import tkinter as tk
 from tkinter.ttk import *
-import cv2
-from PIL import Image, ImageTk
 from tkinter import filedialog
+from PIL import Image, ImageTk
+from datetime import datetime
 import pandas as pd
+import numpy as np
 from ultralytics import YOLO
+import cv2
 import cvzone
 import threading
-import numpy as np
 import asyncio
-from datetime import datetime
 import pytz
 import telegram
 
 # Global variables for OpenCV-related objects and flags
 cap = None
-is_camera_on = False
-frame_count = 0
-area = []
-frame_skip_threshold = 3
-model = YOLO('yolov8s.pt')
-video_paused = False
-alert_telegram_each = 15
 last_alert = None
+is_camera_on = False
+video_paused = False
+frame_count = 0
+alert_telegram_each = 15
+frame_skip_threshold = 3
+area = []
+model = YOLO('yolov8s.pt')
 
 
 # Function to read coco.txt
@@ -99,15 +99,10 @@ def select_file():
         video_paused = False
         update_canvas()  # Start updating the canvas with the video
 
-# Print point(x, y) click mouse
-#def on_click(event):
-#    print("Mouse clicked at", event.x, event.y)
 
+def reset_app(): # Dừng webcam nếu đang chạy
+    area.clear()  # Xóa các điểm trong area  # Xóa hình ảnh trên canvas
 
-def reset_app():
-    stop_webcam()  # Dừng webcam nếu đang chạy
-    area.clear()  # Xóa các điểm trong area
-    canvas.delete("all")  # Xóa hình ảnh trên canvas
 
 def on_canvas_click(event):
     global area
@@ -146,12 +141,9 @@ def update_canvas():
                     d = int(row[5])
                     c = class_list[d]
                     if selected_class == "All" or c == selected_class:
-                        #cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                         cv2.polylines(frame, [np.array(area, np.int32)], True, (209, 21, 102), 2)
                         mid_x = (x1 + x2) // 2
                         mid_y = y2
-                        #cv2.circle(frame, (mid_x, mid_y), 4, (255, 0, 0), -1)
-                        #cvzone.putTextRect(frame, f'{c}', (x1, y1), 1, 1)
                         if len(area) >= 3:
                             result = cv2.pointPolygonTest(np.array(area), (mid_x, mid_y), False)
                             if result >= 0:  # Nếu điểm nằm trong đa giác
@@ -197,7 +189,7 @@ button_frame = tk.Frame(root)
 button_frame.pack(fill='x')
 
 # Create a "Play" button to start the webcam feed
-play_button = tk.Button(button_frame, text="Play", command=start_webcam)
+play_button = tk.Button(button_frame, text="Start", command=start_webcam)
 play_button.pack(side='left')
 
 # Create a "Stop" button to stop the webcam feed
@@ -211,6 +203,9 @@ file_button.pack(side='left')
 # Create a "Pause/Resume" button to pause or resume video
 pause_button = tk.Button(button_frame, text="Pause/Resume", command=pause_resume_video)
 pause_button.pack(side='left')
+
+reset_button = tk.Button(button_frame, text="Reset Points", command=reset_app)
+reset_button.pack(side='left')
 
 # Create a "Quit" button to close the application
 quit_button = tk.Button(button_frame, text="Quit", command=quit_app)
@@ -232,9 +227,6 @@ id_label = tk.Label(root, text="Telegram ID:")
 id_label.pack(side='left')
 id_entry = tk.Entry(root)
 id_entry.pack(side='left')
-
-reset_button = tk.Button(button_frame, text="Reset", command=reset_app)
-reset_button.pack(side='left')
 
 #canvas.bind("<Button-1>", on_click)
 canvas.bind("<Button-1>", on_canvas_click)
