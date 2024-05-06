@@ -21,11 +21,10 @@ import telegram
 cap = None
 is_camera_on = False
 frame_count = 0
-area = [(450, 297), (14, 453), (234, 456), (584, 302)]
+area = []
 frame_skip_threshold = 3
 model = YOLO('yolov8s.pt')
 video_paused = False
-polygon = np.array(area)
 alert_telegram_each = 15
 last_alert = None
 
@@ -63,7 +62,7 @@ def pause_resume_video():
 
 
 # Function to send message to Telegram using user-provided token and chat ID
-async def send_telegram_custom():
+async def send_telegram():
     photo_path = "alert.png"
     try:
         # Use the token provided by the user
@@ -77,7 +76,6 @@ async def send_telegram_custom():
     print("Gửi thành công")
 
 
-
 # Function print "WARNING" and capture image
 def warning(image):
     cv2.putText(image, "CANH BAO CO NGUOI XAM NHAP!!!", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
@@ -85,7 +83,7 @@ def warning(image):
     if (last_alert is None) or ((datetime.now(pytz.utc) - last_alert).total_seconds() > alert_telegram_each):
         last_alert = datetime.now(pytz.utc)  # Gán giá trị mới cho last_alert
         cv2.imwrite("alert.png", cv2.resize(image, dsize=None, fx=0.5, fy=0.5))
-        asyncio.run(send_telegram_custom())
+        asyncio.run(send_telegram())
     return image
 
 
@@ -101,9 +99,24 @@ def select_file():
         video_paused = False
         update_canvas()  # Start updating the canvas with the video
 
+# Print point(x, y) click mouse
+#def on_click(event):
+#    print("Mouse clicked at", event.x, event.y)
 
-def on_click(event):
-    print("Mouse clicked at", event.x, event.y)
+
+def reset_app():
+    stop_webcam()  # Dừng webcam nếu đang chạy
+    area.clear()  # Xóa các điểm trong area
+    canvas.delete("all")  # Xóa hình ảnh trên canvas
+
+def on_canvas_click(event):
+    global area
+    # Get the coordinates of the click event
+    x, y = event.x, event.y
+    # Append the new point to the list
+    area.append((x, y))
+    # Print the updated list of points
+    print("Area points:", area)
 
 
 # Function to update the Canvas with the webcam frame or video frame
@@ -133,15 +146,20 @@ def update_canvas():
                     d = int(row[5])
                     c = class_list[d]
                     if selected_class == "All" or c == selected_class:
-                        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                        #cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                         cv2.polylines(frame, [np.array(area, np.int32)], True, (209, 21, 102), 2)
                         mid_x = (x1 + x2) // 2
                         mid_y = y2
-                        cv2.circle(frame, (mid_x, mid_y), 4, (255, 0, 0), -1)
-                        cvzone.putTextRect(frame, f'{c}', (x1, y1), 1, 1)
-                        result = cv2.pointPolygonTest(polygon, (mid_x, mid_y), False)
-                        if result >= 0:  # Nếu điểm nằm trong đa giác
-                            warning(image=frame)
+                        #cv2.circle(frame, (mid_x, mid_y), 4, (255, 0, 0), -1)
+                        #cvzone.putTextRect(frame, f'{c}', (x1, y1), 1, 1)
+                        if len(area) >= 3:
+                            result = cv2.pointPolygonTest(np.array(area), (mid_x, mid_y), False)
+                            if result >= 0:  # Nếu điểm nằm trong đa giác
+                                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                                cv2.circle(frame, (mid_x, mid_y), 4, (255, 0, 0), -1)
+                                cvzone.putTextRect(frame, f'{c}', (x1, y1), 1, 1)
+                                warning(image=frame)
+
                 photo = ImageTk.PhotoImage(image=Image.fromarray(frame))
                 canvas.img = photo
                 canvas.create_image(0, 0, anchor=tk.NW, image=photo)
@@ -158,7 +176,7 @@ def quit_app():
 
 # Create the main Tkinter window
 root = tk.Tk()
-root.title("YOLO v8 My App")
+root.title("Detect Objects On Region App")
 
 # Create a Canvas widget to display the webcam feed or video
 canvas = tk.Canvas(root, width=1020, height=500)
@@ -205,17 +223,20 @@ canvas.img = initial_photo
 canvas.create_image(0, 0, anchor=tk.NW, image=initial_photo)
 
 # Create entry widgets for Telegram token and chat ID
-token_label = tk.Label(root, text="Enter Telegram Token:")
+token_label = tk.Label(root, text="Telegram Token:")
 token_label.pack(side='left')
 token_entry = tk.Entry(root)
 token_entry.pack(side='left')
 
-id_label = tk.Label(root, text="Enter Telegram Chat ID:")
+id_label = tk.Label(root, text="Telegram ID:")
 id_label.pack(side='left')
 id_entry = tk.Entry(root)
 id_entry.pack(side='left')
 
+reset_button = tk.Button(button_frame, text="Reset", command=reset_app)
+reset_button.pack(side='left')
 
-canvas.bind("<Button-1>", on_click)
+#canvas.bind("<Button-1>", on_click)
+canvas.bind("<Button-1>", on_canvas_click)
 # Start the Tkinter main loop
 root.mainloop()
