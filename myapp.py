@@ -26,8 +26,7 @@ frame_count = 0
 alert_telegram_each = 15
 frame_skip_threshold = 3
 area = []
-model = YOLO('yolov8s.pt')
-
+model = YOLO('best.pt')
 
 # Function to read coco.txt
 def read_classes_from_file(file_path):
