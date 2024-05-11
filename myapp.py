@@ -17,7 +17,7 @@ import asyncio
 import pytz
 import telegram
 
-# Global variables for OpenCV-related objects and flags
+# Variables
 cap = None
 last_alert = None
 is_camera_on = False
@@ -27,6 +27,7 @@ alert_telegram_each = 15
 frame_skip_threshold = 3
 area = []
 model = YOLO('best.pt')
+
 
 # Function to read coco.txt
 def read_classes_from_file(file_path):
@@ -99,17 +100,16 @@ def select_file():
         update_canvas()  # Start updating the canvas with the video
 
 
-def reset_app(): # Dừng webcam nếu đang chạy
-    area.clear()  # Xóa các điểm trong area  # Xóa hình ảnh trên canvas
+# Function to reset points
+def reset_app():
+    area.clear()
 
 
+# Function to click
 def on_canvas_click(event):
     global area
-    # Get the coordinates of the click event
     x, y = event.x, event.y
-    # Append the new point to the list
     area.append((x, y))
-    # Print the updated list of points
     print("Area points:", area)
 
 
@@ -145,7 +145,7 @@ def update_canvas():
                         mid_y = y2
                         if len(area) >= 3:
                             result = cv2.pointPolygonTest(np.array(area), (mid_x, mid_y), False)
-                            if result >= 0:  # Nếu điểm nằm trong đa giác
+                            if result >= 0:  # Check Mid in Area
                                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
                                 cv2.circle(frame, (mid_x, mid_y), 4, (255, 0, 0), -1)
                                 cvzone.putTextRect(frame, f'{c}', (x1, y1), 1, 1)
@@ -227,7 +227,6 @@ id_label.pack(side='left')
 id_entry = tk.Entry(root)
 id_entry.pack(side='left')
 
-#canvas.bind("<Button-1>", on_click)
 canvas.bind("<Button-1>", on_canvas_click)
 # Start the Tkinter main loop
 root.mainloop()
