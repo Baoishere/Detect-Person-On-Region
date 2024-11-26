@@ -23,7 +23,7 @@ last_alert = None
 is_camera_on = False
 video_paused = False
 frame_count = 0
-alert_telegram_each = 15
+alert_telegram_each = 5
 frame_skip_threshold = 3
 area = []
 model = YOLO('best.pt')
@@ -40,7 +40,8 @@ def read_classes_from_file(file_path):
 def start_webcam():
     global cap, is_camera_on, video_paused
     if not is_camera_on:
-        cap = cv2.VideoCapture(0)  # Use the default webcam (you can change the index if needed)
+        # cap = cv2.VideoCapture('rtsp://admin:Soitihon.1340@192.168.0.105:554/cam/realmonitor?channel=1&subtype=0&unicast=true&proto=Onvif')  # Use the default webcam (you can change the index if needed)
+        cap = cv2.VideoCapture(1)
         is_camera_on = True
         video_paused = False
         update_canvas()  # Start updating the canvas
@@ -62,28 +63,41 @@ def pause_resume_video():
 
 
 # Function to send message to Telegram using user-provided token and chat ID
-async def send_telegram():
+# Hàm con bất đồng bộ để gửi ảnh qua Telegram
+async def send_photo_async(bot, chat_id, photo_path):
+    async with bot:
+        await bot.send_photo(chat_id=chat_id, photo=open(photo_path, "rb"),
+                             caption="Phát hiện người xâm nhập !!!")
+
+
+# Hàm đồng bộ dùng cho threading
+def send_telegram_sync():
     photo_path = "alert.png"
     try:
-        # Use the token provided by the user
+        print("Sending Telegram alert...")
         my_token = token_entry.get()
         bot = telegram.Bot(token=my_token)
         chat_id = id_entry.get()
-        await bot.sendPhoto(chat_id=chat_id, photo=open(photo_path, "rb"),
-                            caption="Phát hiện người xâm nhập !!!")
+
+        # Chạy coroutine gửi ảnh bất đồng bộ trong luồng này
+        asyncio.run(send_photo_async(bot, chat_id, photo_path))
+
+        print("Gửi thành công")  # Thông báo khi gửi thành công
     except Exception as ex:
-        print("Không thể gửi tin nhắn tới telegram ", ex)
-    print("Gửi thành công")
+        print("Không thể gửi tin nhắn tới telegram ", ex)  # Hiển thị lỗi chi tiết
 
 
-# Function print "WARNING" and capture image
+# Hàm warning gửi cảnh báo trong luồng riêng biệt
 def warning(image):
     cv2.putText(image, "CANH BAO CO NGUOI XAM NHAP!!!", (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
     global last_alert
     if (last_alert is None) or ((datetime.now(pytz.utc) - last_alert).total_seconds() > alert_telegram_each):
-        last_alert = datetime.now(pytz.utc)  # Gán giá trị mới cho last_alert
+        last_alert = datetime.now(pytz.utc)  # Cập nhật last_alert
         cv2.imwrite("alert.png", cv2.resize(image, dsize=None, fx=0.5, fy=0.5))
-        asyncio.run(send_telegram())
+
+        # Tạo và chạy một luồng mới cho send_telegram_sync
+        threading.Thread(target=send_telegram_sync).start()
+
     return image
 
 
@@ -122,7 +136,7 @@ def update_canvas():
             if ret:
                 frame_count += 1
                 if frame_count % frame_skip_threshold != 0:
-                    canvas.after(10, update_canvas)
+                    canvas.after(5, update_canvas)
                     return
 
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
